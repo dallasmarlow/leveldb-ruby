@@ -1,6 +1,7 @@
 #include <ruby.h>
 
 #include "leveldb/db.h"
+#include "leveldb/cache.h"
 #include "leveldb/slice.h"
 #include "leveldb/write_batch.h"
 
@@ -54,6 +55,10 @@ static VALUE db_make(VALUE klass, VALUE v_pathname, VALUE v_create_if_necessary,
   leveldb::Options options;
   if(RTEST(v_create_if_necessary)) options.create_if_missing = true;
   if(RTEST(v_break_if_exists)) options.error_if_exists = true;
+
+  // hack in some cache money
+  options.block_cache = leveldb::NewLRUCache(100 * 1048576);  // 100MB cache
+
   leveldb::Status status = leveldb::DB::Open(options, pathname, &db->db);
   RAISE_ON_ERROR(status);
 
@@ -70,6 +75,10 @@ static VALUE db_close(VALUE self) {
 
   if(db->db != NULL) {
     delete db->db;
+
+    // release our cache?
+    // delete db->options.cache;
+
     db->db = NULL;
   }
   return Qtrue;
